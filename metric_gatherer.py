@@ -4,6 +4,7 @@ from kubernetes import client, config, utils
 from pprint import pprint
 from models import Service
 from apscheduler.schedulers.blocking import BlockingScheduler
+import time
 
 SERVICES = ['profile', 'rate', 'recommendation',
             'reservation', 'search', 'user', 'frontend', 'geo']
@@ -38,7 +39,6 @@ def get_metrics():
     api = client.CustomObjectsApi()
     k8s_nodes = api.list_namespaced_custom_object(
         "metrics.k8s.io", "v1beta1", "default", "pods")
-    print(k8s_nodes.keys())
     for item in k8s_nodes['items']:
         service = item["metadata"]["labels"]["io.kompose.service"]
         time = item["metadata"]["creationTimestamp"]
@@ -46,25 +46,26 @@ def get_metrics():
             for container in item['containers']:
                 services_metrics[service].append(
                     {"cpu": container['usage']['cpu'], "memory": container['usage']['memory'], "time": time})
+    pprint(services_metrics)
     return services_metrics
 
-
 def save_metrics():
+    start = time.time()
+    global SERIE
     services_metrics = get_metrics()
     metrics = []
     for service, pods in services_metrics.items():
         acc_cpu = 0
         acc_mem = 0
         for pod in pods:
-            acc_cpu += utils.parse_quantity(pod["cpu"])
+            acc_cpu += utils.parse_quantity(pod["cpu"]) * 1000000000
             acc_mem += utils.parse_quantity(pod["memory"])
         metrics.append(Service(cpu=acc_cpu, memory=acc_mem, replicas=len(
             pods), time_serie=SERIE, name=service, time=pods[0]["time"]))
     save_db_metrics(metrics)
+    end = time.time()
+    print(f'{SERIE} interval finished in {end - start}')
     SERIE += 1
-
-
-pprint(get_metrics())
 
 
 scheduler = BlockingScheduler()
