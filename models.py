@@ -8,7 +8,7 @@ Base = declarative_base()
 
 
 class Service(Base):
-    __tablename__ = "service_metrcis"
+    __tablename__ = "metrics"
     name = Column(String, primary_key=True)
     time_serie = Column(INTEGER)
     time = Column(TIMESTAMP, nullable=False, primary_key=True)
@@ -17,12 +17,12 @@ class Service(Base):
     replicas = Column(INTEGER)
     memory = Column(INTEGER)
 
+if __name__ == "__main__":
+    engine = create_engine(
+        "postgresql://postgres:password@localhost:5432/metrics", echo=True)
 
-engine = create_engine(
-    "postgresql://postgres:password@localhost:5432/metrics", echo=True)
+    Base.metadata.create_all(engine)
 
-Base.metadata.create_all(engine)
-
-with engine.connect() as con:
-    result = con.execute(
-        "SELECT create_hypertable('service_metrcis', 'time');")
+    with engine.connect() as con:
+        result = con.execute(
+            "SELECT create_hypertable('metrics', 'time');")
