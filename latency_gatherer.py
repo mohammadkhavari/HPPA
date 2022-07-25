@@ -24,18 +24,17 @@ def get_latency():
     data = resp.json()
     traces = data['data']
     if traces:
-        # latencies= [list(filter(lambda span:span['traceID'] == span['spanID'], trace['spans']))[0]['duration'] for trace in traces ]
         latencies = [max(trace['spans'], key=lambda span: span['duration'])[
             'duration'] for trace in traces]
-        return latencies
-    return []
+        avg = sum(latencies) / max(len(latencies), 1)
+        return avg
+    return 0
 
 
 def show():
     global SERIE
     start = time.time()
-    ls = get_latency()
-    avg = sum(ls) / max(len(ls), 1)
+    avg = get_latency()
     end = time.time()
     print(f'{SERIE} interval finished in {end - start} with value {avg}')
     SERIE += 1
