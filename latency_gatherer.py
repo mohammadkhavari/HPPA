@@ -6,7 +6,7 @@ import requests
 SERIE = 0
 
 
-def get_latency():
+def get_latency(limit=20):
 
     url = "http://localhost:16686/api/traces"
     now = datetime.now()
@@ -16,7 +16,7 @@ def get_latency():
     params = dict(
         start=str(start),
         end=str(end),
-        limit=100,
+        limit=limit,
         # loopback='1h',
         service="frontend"
     )
@@ -40,6 +40,7 @@ def show():
     SERIE += 1
 
 
-scheduler = BlockingScheduler()
-scheduler.add_job(show, 'interval', seconds=2)
-scheduler.start()
+if __name__ == "__main__":
+    scheduler = BlockingScheduler()
+    scheduler.add_job(show, 'interval', seconds=2)
+    scheduler.start()

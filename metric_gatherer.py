@@ -1,7 +1,8 @@
-
+from multiprocessing import Pool
 from sqlalchemy import create_engine
 from kubernetes import client, config, utils
 from pprint import pprint
+from latency_gatherer import get_latency
 from models import Service
 from apscheduler.schedulers.blocking import BlockingScheduler
 import time
@@ -10,15 +11,10 @@ SERVICES = ['profile', 'rate', 'recommendation',
             'reservation', 'search', 'user', 'frontend', 'geo']
 SERIE = 0
 
+INTERVAL = 5
+
 # Configs can be set in Configuration class directly or using helper utility
 config.load_kube_config()
-
-# v1 = client.CoreV1Api()
-# print("Listing pods with their IPs:")
-# ret = v1.list_pod_for_all_namespaces(watch=False)
-# for i in ret.items:
-#     print("%s\t%s\t%s" % (i.status.pod_ip, i.metadata.namespace, i.metadata.name))
-
 
 engine = create_engine(
     "postgresql://postgres:password@localhost:5432/metrics")
@@ -46,13 +42,24 @@ def get_metrics():
             for container in item['containers']:
                 services_metrics[service].append(
                     {"cpu": container['usage']['cpu'], "memory": container['usage']['memory'], "time": time})
-    pprint(services_metrics)
     return services_metrics
+
 
 def save_metrics():
     start = time.time()
     global SERIE
+
+    if SERIE > 450 / INTERVAL:
+        return
+
+    latency_process = pool.apply_async(get_latency, [2])
+    # metrics_process = pool.apply_async(get_metrics,[])
     services_metrics = get_metrics()
+    latency = latency_process.get(timeout=4)
+    # services_metrics = metrics_process.get(timeout=0.5)
+
+    # latency = get_latency(2)
+
     metrics = []
     for service, pods in services_metrics.items():
         acc_cpu = 0
@@ -60,7 +67,7 @@ def save_metrics():
         for pod in pods:
             acc_cpu += utils.parse_quantity(pod["cpu"]) * 1000000000
             acc_mem += utils.parse_quantity(pod["memory"])
-        metrics.append(Service(cpu=acc_cpu, memory=acc_mem, replicas=len(
+        metrics.append(Service(latency=latency, cpu=acc_cpu, memory=acc_mem, replicas=len(
             pods), time_serie=SERIE, name=service, time=pods[0]["time"]))
     save_db_metrics(metrics)
     end = time.time()
@@ -68,6 +75,8 @@ def save_metrics():
     SERIE += 1
 
 
-scheduler = BlockingScheduler()
-scheduler.add_job(save_metrics, 'interval', seconds=2)
-scheduler.start()
+if __name__ == "__main__":
+    pool = Pool()
+    scheduler = BlockingScheduler()
+    scheduler.add_job(save_metrics, 'interval', seconds=INTERVAL)
+    scheduler.start()
