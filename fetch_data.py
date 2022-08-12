@@ -11,6 +11,16 @@ SERVICE_RESOURCE_FEATURES = 3 # cpu, ram, replica + (pre-launch validation -> ti
 engine = create_engine(
     "postgresql://postgres:password@localhost:5432/metrics")
 
+def resource_history_input_shape():
+    return (HISTORY_WINDOW, SERVICES_COUNT, SERVICE_RESOURCE_FEATURES)
+
+def latency_history_input_shape():
+    return (HISTORY_WINDOW, 1)
+
+def future_latency_shape():
+    # it can enhance and be prediction horizon
+    return 1
+
 def fetch_train_data(data_count = 20, offset = 5):
     """
         fetch train data inputs, output from metrics db -> (X_RH, X_LH), Y_L
@@ -73,4 +83,5 @@ def extract_future_latency(records, data_count, time_series_count):
     Y_L = time_series_data[HISTORY_WINDOW:].reshape(data_count, 1)
     return Y_L
 
-print(fetch_train_data(4, 10))
+if __name__ == "__main__":
+    print(fetch_train_data(4, 10))

@@ -11,6 +11,7 @@ def get_latency(limit=20):
     url = "http://localhost:16686/api/traces"
     now = datetime.now()
     end = int(datetime.timestamp(now)*1000000)
+    # considering last 2 seconds
     start = int(datetime.timestamp(now - timedelta(0, 2))*1000000)
 
     params = dict(
